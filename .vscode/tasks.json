@@ -1,0 +1,121 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "docker-prep",
+      "command": [
+        "mkdir -p",
+        "${workspaceFolder}/.cache",
+        "${workspaceFolder}/.ivy2",        
+        "${workspaceFolder}/build",
+        "${workspaceFolder}/dist",
+      ],
+      "windows": {
+        "command": [
+          "New-Item -ItemType Directory -Force -Path ",
+          "\"${workspaceFolder}\\.cache\", ",
+          "\"${workspaceFolder}\\.ivy2\", ",
+          "\"${workspaceFolder}\\build\", ",
+          "\"${workspaceFolder}\\dist\""
+        ],
+      }
+    },
+    {
+      "type": "docker-build",
+      "label": "docker-build",
+      "dockerBuild": {
+        "dockerfile": "${workspaceFolder}/Dockerfile-dev",
+        "context": "./",
+        "tag": "containerized-python-dev"
+      },
+      "platform": "python",
+      "dependsOn": "docker-prep"
+    },
+    {
+      "type": "shell",
+      "label": "docker-create",
+      "command": [
+        "docker",
+        "create",
+        "--name containerized-python-dev",
+        "containerized-python-dev"
+      ],
+      "dependsOn": "docker-build"
+    },
+    {
+      "type": "shell",
+      "label": "docker-cp-cache",
+      "command": [
+        "docker",
+        "cp",
+        "containerized-python-dev:/home/dev/.cache",
+        "${workspaceFolder}"
+      ],
+      "dependsOn": "docker-create"
+    },
+    {
+      "type": "shell",
+      "label": "docker-cp-build",
+      "command": [
+        "docker",
+        "cp",
+        "containerized-python-dev:/home/dev/containerized-python/build",
+        "${workspaceFolder}"
+      ],
+      "dependsOn": "docker-create",
+    },
+    
+    {
+      "type": "shell",
+      "label": "docker-cp-dist",
+      "command": [
+        "docker",
+        "cp",
+        "containerized-python-dev:/home/dev/containerized-python/dist",
+        "${workspaceFolder}"
+      ],
+      "dependsOn": "docker-create",
+    },
+    {
+      "type": "shell",
+      "label": "docker-rm",
+      "command": [
+        "docker",
+        "rm",
+        "containerized-python-dev"
+      ],
+      "dependsOn": [
+        "docker-cp-cache",
+        "docker-cp-build",
+        "docker-cp-dist",
+      ]
+    },
+    {
+      "type": "docker-run",
+      "label": "docker-run: debug",
+      "dependsOn": [
+        "docker-rm"
+      ],
+      "dockerRun": {
+        "image": "containerized-python-dev",
+        "customOptions": "--rm -it --security-opt seccomp=unconfined",
+        "volumes": [
+          {
+            "localPath": "${workspaceFolder}/.ivy2",
+            "containerPath": "/home/dev/.ivy2"
+          }
+        ],
+      },
+      "python": {
+        "module": "main",
+        "wait": true
+      }
+    },
+    {
+        "type": "shell",
+        "label": "docker-stop: debug",
+        "command": "docker rm $(docker kill $(docker ps -a --filter ancestor=${workspaceFolderBasename}:latest --format={{.ID}}))"
+    }
+  ]
+}

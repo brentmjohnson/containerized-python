@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "containerized-python"
+version = "0.0.1"
+dependencies = [
+    "delta-spark==3.2"
+]

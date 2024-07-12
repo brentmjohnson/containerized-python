@@ -1,0 +1,38 @@
+FROM python:3.12
+
+ARG UID=1000
+ARG GID=1000
+
+RUN set -ex \
+    && apt-get update \
+    && apt-get install -y \
+        default-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g ${GID} dev && \
+    useradd -m -s /usr/sbin/nologin -u ${UID} -g dev dev
+
+RUN mkdir -p /home/dev/containerized-python
+WORKDIR /home/dev/containerized-python
+
+RUN pip install --upgrade build
+
+COPY ./.cache ../.cache/
+RUN chown -R dev:dev ../.cache
+COPY ./build ./build/
+COPY ./dist ./dist/
+COPY ./src ./src/
+COPY setup.py pyproject.toml \
+    ./
+RUN chown -R dev:dev .
+USER dev
+
+RUN pip install --editable .
+
+CMD [ "sh", "-c", \
+    "python -m 'main'" \
+]
+
+# docker build . -f Dockerfile-dev --no-cache --progress=plain --tag=containerized-python-dev
+# docker build . -f Dockerfile-dev --tag=containerized-python-dev
+# docker run --rm -it  containerized-python-dev:latest
